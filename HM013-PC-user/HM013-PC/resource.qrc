@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>black.qss</file>
+        <file>more.png</file>
+        <file>Image/radio_off.png</file>
+        <file>Image/radio_on.png</file>
+        <file>Image/slo.png</file>
+    </qresource>
+</RCC>
