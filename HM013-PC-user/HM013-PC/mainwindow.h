@@ -14,11 +14,22 @@
 #include <QThread>
 #include <QTimer>
 #include <QTime>
-#include <jwplot/qcustomplot.h>
+
+#include "qcustomplot.h"
 #include <QThreadPool>
 #include <QThread>
 #include <QSerialPort>
 #include <QSerialPortInfo>
+#include "jwserial.h"
+#include "jwserialthread.h"
+#include <callback.h>
+#include <QBluetoothSocket>
+#include <QBluetoothUuid>
+#include <QBluetoothAddress>
+#include <QIODevice>
+#include <QBluetoothDeviceInfo>
+#include <qbluetoothdevicediscoveryagent.h>
+#include <QBluetoothLocalDevice>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -37,6 +48,10 @@ public:
     void CreatWaveplot(void);
     QString ByteArrayToHexString(QByteArray data);
     QByteArray HexStringToByteArray(QString HexString);
+
+    bool find_SerialDevice(void);
+
+    void bluetoothDataSend(QString str);
 signals:
     void serialDataSend(const QByteArray data);//通知串口接收数据
     void serialDataRead(void);
@@ -69,7 +84,6 @@ private slots:
 
     void on_pushButton_8_clicked();
 
-    bool find_SerialDevice(void);
     void on_comboBox_2_activated(const QString &arg1);
 
     void on_pushButton_7_clicked();
@@ -83,6 +97,13 @@ private slots:
     void on_pushButton_9_clicked();
 
     void on_pushButton_10_clicked();
+
+    //////////////////////////////////////////////////////////
+    void discoverBlueTooth(QBluetoothDeviceInfo info);
+    void discoveryFinished();
+    //void scanFinished();
+    void readBluetoothDataEvent();
+    void bluetoothConnectedEvent();
 
 private:
     QTimer *timer;
@@ -102,9 +123,12 @@ private:
 
     QThread         mainThread;
     QThread         PlotThread;
-    QSerialPort     mSerialPort;
+    QSerialPort     *mSerialPort;
     jwSerialThread  *m_serial;
 
     QByteArray       mByteSendData;
+    QBluetoothLocalDevice *localDevice;
+    QString BTaddress;		// 记录MAC地址
+    QBluetoothSocket *socket;
 };
 #endif // MAINWINDOW_H

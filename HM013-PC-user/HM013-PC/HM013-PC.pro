@@ -3,7 +3,7 @@ QT       += core gui\
             multimedia\
             serialport\
             printsupport\
-
+            bluetooth\
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -25,8 +25,11 @@ DEFINES += QT_DEPRECATED_WARNINGS\
 
 SOURCES += \
     appthreadhjw.cpp \
+    callback.cpp \
     enterwindow.cpp \
     fileprotocolparsehjw.cpp \
+    genericcallback.cpp \
+    jwblue.cpp \
     jwserialthread.cpp \
     licensehjw.cpp \
     main.cpp \
@@ -43,8 +46,11 @@ SOURCES += \
 
 HEADERS += \
     appthreadhjw.h \
+    callback.h \
     enterwindow.h \
     fileprotocolparsehjw.h \
+    genericcallback.h \
+    jwblue.h \
     jwserialthread.h \
     licensehjw.h \
     maintable.h \

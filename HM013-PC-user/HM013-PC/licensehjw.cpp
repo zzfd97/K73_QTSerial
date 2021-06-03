@@ -11,6 +11,7 @@ Licensehjw::Licensehjw()
     settings.setValue("1more", i);//写
     str=value;
 }
+
 QString Licensehjw::toXOREncryptUncrypt(QString src, const QChar key)
 {
     for(int i = 0; i < src.count(); i++) {
@@ -42,14 +43,17 @@ QString Licensehjw::getWMIC(const QString &cmd)
     result = result.simplified();
     return result;
 }
+
 QString Licensehjw::getCpuName(void)
 {
     return getWMIC("wmic cpu get name");
 }
+
 QString Licensehjw::getCpuId()
 {
     return getWMIC("wmic cpu get processorid");
 }
+
 QString Licensehjw::getDiskNum()
 {
     return getWMIC("wmic diskdrive where index=0 get serialnumber");

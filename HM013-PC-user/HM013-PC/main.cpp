@@ -14,6 +14,7 @@
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QMessageBox>
 //#include "usbhidhjw.h"
+#include "jwblue.h"
 
 #define printf qDebug
 
@@ -32,6 +33,8 @@ int main(int argc, char *argv[])
     MainWindow w;
     w.show();
     w.setWindowTitle("K73_xiaomi");
+
+
 
 
 

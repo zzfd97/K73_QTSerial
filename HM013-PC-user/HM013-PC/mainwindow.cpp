@@ -7,10 +7,13 @@
 #include <QMessageBox>
 #include <QSerialPort>
 
+
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
+
     QDateTime time=QDateTime::currentDateTime();
     timer=new QTimer(this);
 
@@ -23,7 +26,8 @@ MainWindow::MainWindow(QWidget *parent)
     //create serial port
 
 
-    jwSerialThread* m_serial=new jwSerialThread(&mSerialPort,this);
+    jwSerialThread* m_serial=new jwSerialThread;
+    mSerialPort=new QSerialPort;
 
     if(m_serial!=nullptr){
         qDebug()<<"创建串口成功！";
@@ -33,6 +37,18 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     ui->setupUi(this);
+
+    /************************************************************/
+
+    QBluetoothDeviceDiscoveryAgent *discoveryAgent;
+     discoveryAgent = new QBluetoothDeviceDiscoveryAgent;
+     connect(discoveryAgent, SIGNAL(deviceDiscovered(QBluetoothDeviceInfo)), this, SLOT(discoverBlueTooth(QBluetoothDeviceInfo)));
+     connect(discoveryAgent, SIGNAL(finished()), this, SLOT(discoveryFinished()));
+     discoveryAgent->start();
+
+     /************************************************************/
+
+
     ui->dial->setMinimum(0);
     ui->dial->setMaximum(255);
     ui->dial->setNotchTarget(1);
@@ -125,10 +141,10 @@ MainWindow::MainWindow(QWidget *parent)
     m_serial->moveToThread(&mainThread);
     connect(&mainThread,&QThread::finished,m_serial,&QObject::deleteLater);
     connect(this,&MainWindow::serialDataSend,m_serial,&jwSerialThread::doDataSend);
-    connect(&mSerialPort,&QSerialPort::readyRead,m_serial,&jwSerialThread::doDataReceive);
+    //connect(&mSerialPort,&QSerialPort::readyRead,m_serial,&jwSerialThread::doDataReceive);
     connect(m_serial,&jwSerialThread::sendResulttoGUI,this,&MainWindow::on_serial_show);
     mainThread.start();
-    connect(&mSerialPort,&QSerialPort::readyRead,this,&MainWindow::serialDataRead);
+    //connect(&mSerialPort,&QSerialPort::readyRead,this,&MainWindow::serialDataRead);
 }
 
 #if 0
@@ -152,6 +168,56 @@ void MainWindow::serialDataRead(void)
       ui->textEdit_3->append(oldString);
 }
 #endif
+
+
+void MainWindow::discoveryFinished()
+{
+    qDebug()<<"discoveryFinished";
+    static QString serviceUuid("00001101-0000-1000-8000-00805F9B34FB");
+    socket = new QBluetoothSocket(QBluetoothServiceInfo::RfcommProtocol);
+    socket->connectToService(QBluetoothAddress(BTaddress), QBluetoothUuid(serviceUuid),QIODevice::ReadWrite);
+    connect(socket,SIGNAL(readyRead()), this, SLOT(readBluetoothDataEvent()));
+    connect(socket,SIGNAL(connected()), this, SLOT(bluetoothConnectedEvent()));
+\
+}
+
+void MainWindow::discoverBlueTooth(QBluetoothDeviceInfo info)
+{
+    QString label = QString("%1 %2").arg(info.address().toString()).arg(info.name());
+     if(info.name()=="HC-06")
+     {
+         BTaddress = info.address().toString();
+     }
+     qDebug()<<label;
+}
+
+void MainWindow::readBluetoothDataEvent()
+{
+   char data[100];
+   qint64 len = socket->read((char *)data, 100);
+
+   QByteArray qa2((char*)data,len);
+   QString qstr(qa2.toHex());//
+   qDebug()<<"----"<<qstr.toUpper();
+}
+
+
+
+void MainWindow::bluetoothDataSend(QString str)
+{
+    QByteArray arrayData;
+    arrayData = str.toUtf8();
+    socket->write(arrayData);
+}
+
+// 连接成功的事件中添加一行发送数据：
+void MainWindow::bluetoothConnectedEvent()
+{
+    qDebug()<<"bluetoothConnectedEvent";
+
+    bluetoothDataSend("hellow bluetooth");
+}
+
 /*
  * @breif 将字节序列转换为对应的16进制字符串
  */
@@ -335,8 +401,10 @@ void MainWindow::realtimeDataSlot()
     char *cdata=mByteSendData.data();
     int length=mByteSendData.size();
     qDebug()<<"realtimeDataSlot"<<*cdata<<length;
+    QVector<double> fdata;
+    //QDataStream stream(&mByteSendData,QIODevice::WriteOnly);
 
-    mByteSendData.resize(1);
+    qDebug()<<"QDataStream"<<fdata;
     //qDebug()<<"hex"<<mByteSendData.fromRawData(cdata,length);
     for(int i=0;i<mByteSendData.size();i++){
     ui->serial_plot->graph(0)->addData(key,mByteSendData.at(i));
@@ -379,17 +447,19 @@ bool MainWindow::find_SerialDevice(void)
     //查找可用的串口
     foreach(const QSerialPortInfo &info, QSerialPortInfo::availablePorts())
     {
-        mserialportList.append(info.portName()+info.description());
+        //mserialportList.append(info.portName()+info.description());
         qDebug()<<"串口名:"<<info.portName();
         qDebug()<<"描述信息:"<<info.description();
         qDebug()<<"制造商:"<<info.manufacturer();
+
         QSerialPort serial;
         serial.setPort(info);
         if(serial.open(QIODevice::ReadWrite))
         {
-            ui->comboBox_7->addItem(serial.portName());
-            serial.close();
+        ui->comboBox_7->addItem(serial.portName());
+        serial.close();
         }
+
     }
 
     //serialThread->run();
@@ -506,14 +576,55 @@ void MainWindow::on_comboBox_2_activated(const QString &arg1)
 void MainWindow::on_pushButton_7_clicked()
 {
     QString str=ui->pushButton_7->text();
-    if(str==tr("开始")){        
-        dataTimer->start();
-        ui->pushButton_7->setText(tr("停止"));
+
+    if(mSerialPort!=nullptr){
+        ui->textBrowser_3->append("创建串口成功!");
     }else{
-        dataTimer->stop();
-        ui->pushButton_7->setText(tr("开始"));
+        ui->textBrowser_3->append("创建串口失败!");
     }
 
+    if(str==tr("开始")){
+        //dataTimer->start();
+        ui->pushButton_7->setText(tr("停止"));
+
+        if(mSerialPort!=nullptr){
+            mSerialPort->setPortName(ui->comboBox_7->currentText());
+            mSerialPort->setBaudRate(ui->comboBox_2->currentText().toInt());
+            //数据位
+            switch(ui->comboBox_4->currentIndex()){
+            case 8:
+            mSerialPort->setDataBits(QSerialPort::Data8);
+            break;
+            }
+            //停止位
+            switch(ui->comboBox_3->currentIndex()){
+            case 1:
+            mSerialPort->setStopBits(QSerialPort::OneStop);
+            break;
+            }
+            //设置流控制
+            mSerialPort->setFlowControl(QSerialPort::NoFlowControl);
+            ui->comboBox_3->setEnabled(false);
+            ui->comboBox_4->setEnabled(false);
+            if(mSerialPort->open(QIODevice::ReadWrite)){
+                mSerialPort->write("sdghghahs");
+                qDebug()<<"\r\n 串口发送成";
+            }
+                qDebug()<<"\r\n 串口发送成错误";
+          }
+
+    }else{
+        //dataTimer->stop();
+        ui->pushButton_7->setText(tr("开始"));
+        if(mSerialPort!=nullptr){
+            mSerialPort->clear();
+            mSerialPort->close();
+            mSerialPort->deleteLater();
+            ui->comboBox_3->setEnabled(true);
+            ui->comboBox_4->setEnabled(true);
+        }
+    }
+#if 0
     QString serialportname=ui->comboBox_7->currentText();
 
     qDebug()<<"m_serial"<<m_serial;
@@ -527,6 +638,7 @@ void MainWindow::on_pushButton_7_clicked()
         mainThread.start();
         //connect(m_serial,SIGNAL(sendResulttoGUI(QByteArray)),this,SLOT(on_serial_show(QByteArray)),Qt::QueuedConnection);
     }
+#endif
 }
 
 void MainWindow::on_tabWidget_currentChanged(int index)
