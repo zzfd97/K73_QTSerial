@@ -78,6 +78,6 @@ RESOURCES += \
     BP.qrc
 
 
+DEFINES += QT_DEPRECATED_WARNINGS
 
-DISTFILES +=
-
+win32: LIBS += -lSetupAPI -luser32
