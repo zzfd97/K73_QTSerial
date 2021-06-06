@@ -42,12 +42,9 @@ Plothjw::Plothjw(const QAudioDeviceInfo &deviceInfo, QWidget *parent) :
     formatAudio.setCodec("audio/pcm");
     formatAudio.setByteOrder(QAudioFormat::LittleEndian);
     formatAudio.setSampleType(QAudioFormat::UnSignedInt);
-
     m_audioInput = new QAudioInput(deviceInfo, formatAudio, NULL);
-
     m_device = new XYSeriesIODevice(m_series, parent);
     m_device->open(QIODevice::WriteOnly);
-
     m_audioInput->start(m_device);
 }
 

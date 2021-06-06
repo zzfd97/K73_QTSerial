@@ -7,32 +7,255 @@
 #include <QMessageBox>
 #include <QSerialPort>
 
+
+
+
+void MainWindow::stringTohexString(QString& str, QString& hexStr)
+{
+    str=str;
+    hexStr=hexStr;
+}
+
+int MainWindow::hexStringToString(QString& hexStr, QString& str)
+{
+    int ret = 0;
+    bool ok;
+    QByteArray retByte;
+    hexStr = hexStr.trimmed();
+    hexStr = hexStr.simplified();
+    QStringList sl = hexStr.split(" ");
+
+    foreach (QString s, sl)
+    {
+        if(!s.isEmpty())
+        {
+            char c = (s.toInt(&ok,16))&0xFF;
+            if (ok)
+            {
+                retByte.append(c);
+            }
+            else
+            {
+                ret = -1;
+            }
+        }
+    }
+
+    str = retByte;
+
+    return ret;
+}
+
+int MainWindow::hexStringToHexArray(QString& hexStr, QByteArray& arr)
+{
+    int ret = 0;
+    bool ok;
+    hexStr = hexStr.trimmed();
+    hexStr = hexStr.simplified();
+    QStringList sl = hexStr.split(" ");
+
+    foreach (QString s, sl)
+    {
+        if(!s.isEmpty())
+        {
+            char c = (s.toInt(&ok,16))&0xFF;
+            if (ok)
+            {
+                arr.append(c);
+            }
+            else
+            {
+                ret = -1;
+            }
+        }
+    }
+
+    return ret;
+}
+
+int MainWindow::hexArrayToString(QByteArray& hexArr, QString& str)
+{
+    int ret = 0;
+    str = hexArr.toHex(' ').toLower();
+    return ret;
+}
+
+void MainWindow::CreateSerialportWindow(void)
+{
+    QStringList list;
+    list.clear();
+    list << "2400" << "4800" << "9600" << "14400" << \
+    "19200" << "38400" << "43000" << "57600" << "76800" << \
+    "115200" << "230400" << "256000" << "460800" << "921600";
+    ui->comboBox_2->addItems(list);
+    ui->comboBox_2->setCurrentText(tr("115200"));
+    //////////////////////////////////////////////////////////////
+    foreach(const QSerialPortInfo &info, QSerialPortInfo::availablePorts())
+    {
+        if (-1 == ui->comboBox_7->findText(info.portName()))
+            ui->comboBox_7->addItem(info.portName());
+    }
+    mSerialPort.close();
+    mSerialPort.setReadBufferSize(1024*100);
+    mSerialPort.setSettingsRestoredOnClose(true);
+
+    //连接信号和槽
+    QObject::connect(&mSerialPort, &QSerialPort::readyRead, this, &MainWindow::readyRead);
+    QObject::connect(this, &MainWindow::sig_deviceChanged, this, &MainWindow::on_deviceChanged);
+    // 注册各类设备，可根据要求删减
+#if 0
+    static const GUID GUID_DEVINTERFACE_LIST[] =
+    {
+    // GUID_DEVINTERFACE_USB_DEVICE
+    { 0xA5DCBF10, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } },
+    // GUID_DEVINTERFACE_DISK
+    { 0x53f56307, 0xb6bf, 0x11d0, { 0x94, 0xf2, 0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b } },
+    // GUID_DEVINTERFACE_HID,
+    { 0x4D1E55B2, 0xF16F, 0x11CF, { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } },
+    // GUID_NDIS_LAN_CLASS
+    { 0xad498944, 0x762f, 0x11d0, { 0x8d, 0xcb, 0x00, 0xc0, 0x4f, 0xc3, 0x35, 0x8c } }
+    //// GUID_DEVINTERFACE_COMPORT
+    //{ 0x86e0d1e0, 0x8089, 0x11d0, { 0x9c, 0xe4, 0x08, 0x00, 0x3e, 0x30, 0x1f, 0x73 } },
+    //// GUID_DEVINTERFACE_SERENUM_BUS_ENUMERATOR
+    //{ 0x4D36E978, 0xE325, 0x11CE, { 0xBF, 0xC1, 0x08, 0x00, 0x2B, 0xE1, 0x03, 0x18 } },
+    //// GUID_DEVINTERFACE_PARALLEL
+    //{ 0x97F76EF0, 0xF883, 0x11D0, { 0xAF, 0x1F, 0x00, 0x00, 0xF8, 0x00, 0x84, 0x5C } },
+    //// GUID_DEVINTERFACE_PARCLASS
+    //{ 0x811FC6A5, 0xF728, 0x11D0, { 0xA5, 0x37, 0x00, 0x00, 0xF8, 0x75, 0x3E, 0xD1 } }
+    };
+
+    //注册插拔事件
+    HDEVNOTIFY hDevNotify;
+    DEV_BROADCAST_DEVICEINTERFACE NotifacationFiler;
+    ZeroMemory(&NotifacationFiler,sizeof(DEV_BROADCAST_DEVICEINTERFACE));
+    NotifacationFiler.dbcc_size = sizeof(DEV_BROADCAST_DEVICEINTERFACE);
+    NotifacationFiler.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
+
+    for(int i=0;i<sizeof(GUID_DEVINTERFACE_LIST)/sizeof(GUID);i++)
+    {
+        NotifacationFiler.dbcc_classguid = GUID_DEVINTERFACE_LIST[i];//GetCurrentUSBGUID();//m_usb->GetDriverGUID();
+        hDevNotify = RegisterDeviceNotification((HANDLE)this->winId(),&NotifacationFiler,DEVICE_NOTIFY_WINDOW_HANDLE);
+        if(!hDevNotify)
+        {
+            DWORD Err = GetLastError();
+            qDebug() << "注册失败" <<endl;
+        }
+        //else
+    }
+#endif
+
+    on_btnOpen_clicked();
+
+}
+void MainWindow::readyRead()
+{
+    QByteArray buffer = mSerialPort.readAll();
+    mByteSendData=buffer;
+    QString info;
+    QString tmpStr;
+    QString timeStr = "";
+    //m_rxCnt += buffer.size();
+    //m_stsRx->setText("RX: " + QString::number(m_rxCnt));
+
+    QDateTime dateTime(QDateTime::currentDateTime());
+    timeStr = "[" + dateTime.toString(" HH:mm:ss.zzz") + "] ";
+
+    m_recvHex=0;
+    if (m_recvHex == 1)
+    {
+        info = buffer.toHex(' ').data();
+        for (int i = 0; i < buffer.size(); i++)
+        {
+            tmpStr.sprintf("%02x ", buffer.at(i));
+            qDebug() << buffer.at(i);
+            info.append(tmpStr);
+        }
+    }
+    else
+    {
+        info = QString(buffer);
+    }
+    //ui->textBrowser_3->clear();
+    ui->textBrowser_3->append(timeStr + info);
+    // TODO
+    // 似乎直接用QByteArray无法直接取真正的值
+    // 这里先转为数组，再判断，需要优化
+    char *data = (char*)buffer.data();
+    uint8_t buf[255] = {0};
+    m_rxCnt+=buffer.size();
+    if(buffer.contains("jw"))
+    {
+        //for (int i = 0; i < buffer.size(); i++)
+        if(buffer.size()>5)
+        {
+           buf[0]=buffer.at(2)-48;
+           buf[1]=buffer.at(3)-48;
+           buf[2]=buffer.at(4)-48;
+           //qDebug()<<"接收正确帧"<<int(buf[0]*100+buf[1]*10+buf[2]);
+        }
+        //解析接收数据
+
+    }else{
+         //qDebug()<<"接收错误帧";
+    }
+
+
+    // 根据值判断做逻辑处理，可做成函数
+    if (buf[0] == 0xaa && buf[1] == 0x55)
+    {
+
+    }
+
+    mSerialPort.clear();
+}
+
+void MainWindow::on_deviceChanged(int flag)
+{
+    if (flag == 1)
+    {
+        foreach(const QSerialPortInfo &info, QSerialPortInfo::availablePorts())
+        {
+            if (-1 == ui->comboBox_7->findText(info.portName()))
+                ui->comboBox_7->addItem(info.portName());
+        }
+    }
+    else
+    {
+        mSerialPort.close();
+        ui->pushButton_7->setText(tr("打开串口"));
+        //ui->pushButton_7->setIcon(QIcon(":images/notopened.ico"));
+    }
+}
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
+
     QDateTime time=QDateTime::currentDateTime();
     timer=new QTimer(this);
 
     setMinimumSize(1103,718);
     setMaximumSize(1103,718);
     setWindowOpacity(0.90);
-    this->setWindowTitle(tr("K73_xiaomi"));
+    this->setWindowTitle(tr("K73_小米"));
     connect(timer,SIGNAL(timeout()),this,SLOT(timerUpdate()));
     timer->start(1000);
     //create serial port
 
-
-    jwSerialThread* m_serial=new jwSerialThread(&mSerialPort,this);
-
-    if(m_serial!=nullptr){
-        qDebug()<<"创建串口成功！";
-    }else{
-         qDebug()<<"创建串口失败！";
-    }
-
-
     ui->setupUi(this);
+
+    /************************************************************/
+#if  0
+     QBluetoothDeviceDiscoveryAgent *discoveryAgent;
+     discoveryAgent = new QBluetoothDeviceDiscoveryAgent;
+     connect(discoveryAgent, SIGNAL(deviceDiscovered(QBluetoothDeviceInfo)), this, SLOT(discoverBlueTooth(QBluetoothDeviceInfo)));
+     connect(discoveryAgent, SIGNAL(finished()), this, SLOT(discoveryFinished()));
+     discoveryAgent->start();
+#endif
+     /************************************************************/
+
+
     ui->dial->setMinimum(0);
     ui->dial->setMaximum(255);
     ui->dial->setNotchTarget(1);
@@ -85,6 +308,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->progressBar->setMaximum(1000);
     ui->progressBar->setRange(0,1000);
 
+
     ///////////////////////////////////////////////////
     /// \brief connect
     ///
@@ -122,78 +346,67 @@ MainWindow::MainWindow(QWidget *parent)
     CreatePlot();
     CreatWaveplot();
 
+#if 0
     m_serial->moveToThread(&mainThread);
     connect(&mainThread,&QThread::finished,m_serial,&QObject::deleteLater);
     connect(this,&MainWindow::serialDataSend,m_serial,&jwSerialThread::doDataSend);
-    connect(&mSerialPort,&QSerialPort::readyRead,m_serial,&jwSerialThread::doDataReceive);
+    //connect(&mSerialPort,&QSerialPort::readyRead,m_serial,&jwSerialThread::doDataReceive);
     connect(m_serial,&jwSerialThread::sendResulttoGUI,this,&MainWindow::on_serial_show);
     mainThread.start();
-    connect(&mSerialPort,&QSerialPort::readyRead,this,&MainWindow::serialDataRead);
-}
-
-#if 0
-void MainWindow::serialDataRead(void)
-{
-    // 获取当前时间字符串
-      QDateTime current_date_time =QDateTime::currentDateTime();
-      QString dateStr =current_date_time.toString("[yyyy-MM-dd hh:mm:ss.zzz]");
-
-      //从接收缓冲区中读取数据
-      QByteArray buffer = mSerialPort.readAll();
-      QString bufferStr = ByteArrayToHexString(buffer);
-
-      QString displayStr = dateStr+"\n"+bufferStr+"\n";
-
-      //从界面中读取以前收到的数据
-      QString oldString = ui->textEdit_3->toPlainText();
-      oldString = oldString + QString(displayStr);
-
-      ui->textEdit_3->clear();
-      ui->textEdit_3->append(oldString);
-}
 #endif
-/*
- * @breif 将字节序列转换为对应的16进制字符串
- */
-QString MainWindow::ByteArrayToHexString(QByteArray data)
-{
-    QString ret(data.toHex().toUpper());
-    int len = ret.length()/2;
-    qDebug()<<"ByteArrayToHexString"<<len;
-    for(int i=1;i<len;i++)
-    {
-        //qDebug()<<i;
-        ret.insert(2*i+i-1," ");
-    }
-
-    return ret;
+    CreateSerialportWindow();
 }
-/*
- * @breif 将16进制字符串转换为对应的字节序列
- */
-QByteArray MainWindow::HexStringToByteArray(QString HexString)
-{
-    bool ok;
-    QByteArray ret;
-    HexString = HexString.trimmed();
-    HexString = HexString.simplified();
-    QStringList sl = HexString.split(" ");
 
-    foreach (QString s, sl) {
-        if(!s.isEmpty())
-        {
-            char c = s.toInt(&ok,16)&0xFF;
-            if(ok){
-                ret.append(c);
-            }else{
-                qDebug()<<"非法的16进制字符："<<s;
-                QMessageBox::warning(0,tr("错误："),QString("非法的16进制字符: \"%1\"").arg(s));
-            }
-        }
-    }
-    //qDebug()<<ret;
-    return ret;
+
+
+void MainWindow::discoveryFinished()
+{
+    qDebug()<<"discoveryFinished";
+    static QString serviceUuid("00001101-0000-1000-8000-00805F9B34FB");
+    socket = new QBluetoothSocket(QBluetoothServiceInfo::RfcommProtocol);
+    socket->connectToService(QBluetoothAddress(BTaddress), QBluetoothUuid(serviceUuid),QIODevice::ReadWrite);
+    connect(socket,SIGNAL(readyRead()), this, SLOT(readBluetoothDataEvent()));
+    connect(socket,SIGNAL(connected()), this, SLOT(bluetoothConnectedEvent()));
+\
 }
+
+void MainWindow::discoverBlueTooth(QBluetoothDeviceInfo info)
+{
+    QString label = QString("%1 %2").arg(info.address().toString()).arg(info.name());
+     if(info.name()=="HC-06")
+     {
+         BTaddress = info.address().toString();
+     }
+     qDebug()<<label;
+}
+
+void MainWindow::readBluetoothDataEvent()
+{
+   char data[100];
+   qint64 len = socket->read((char *)data, 100);
+
+   QByteArray qa2((char*)data,len);
+   QString qstr(qa2.toHex());//
+   qDebug()<<"----"<<qstr.toUpper();
+}
+
+
+
+void MainWindow::bluetoothDataSend(QString str)
+{
+    QByteArray arrayData;
+    arrayData = str.toUtf8();
+    socket->write(arrayData);
+}
+
+// 连接成功的事件中添加一行发送数据：
+void MainWindow::bluetoothConnectedEvent()
+{
+    qDebug()<<"bluetoothConnectedEvent";
+    bluetoothDataSend("hellow bluetooth");
+}
+
+
 
 void MainWindow::CreatePlot(void)
 {
@@ -213,13 +426,13 @@ void MainWindow::CreatePlot(void)
     ui->serial_plot->xAxis->setTicker(timeTicker);
     ui->serial_plot->xAxis->setLabel("- - - - - - - - - - - - - - - - - - - -调试时间- - - - - - - - - - - - - - - - - - -");
     ui->serial_plot->axisRect()->setupFullAxesBox();
-    ui->serial_plot->yAxis->setRange(-50, 120);
+    ui->serial_plot->yAxis->setRange(-100, 1000);
     ui->serial_plot->yAxis->setLabel("- - - - - -任务进程- - - - - - -");
     // make left and bottom axes transfer their ranges to right and top axes:
     connect(ui->serial_plot->xAxis, SIGNAL(rangeChanged(QCPRange)), ui->serial_plot->xAxis2, SLOT(setRange(QCPRange)));
     connect(ui->serial_plot->yAxis, SIGNAL(rangeChanged(QCPRange)), ui->serial_plot->yAxis2, SLOT(setRange(QCPRange)));
     dataTimer= new QTimer(this);
-    //connect(dataTimer, SIGNAL(timeout()),this, SLOT(realtimeDataSlot()));
+    connect(dataTimer, SIGNAL(timeout()),this, SLOT(realtimeDataSlot()));
     dataTimer->start(100);
 }
 
@@ -324,33 +537,48 @@ void MainWindow::CreatWaveplot(void)
 
 void MainWindow::realtimeDataSlot()
 {
-    bool ok;
+  double plotData;
+  bool ok;
   static QTime time(QTime::currentTime());
   // calculate two new data points:
   double key = time.elapsed()/300.0; // time elapsed since start of demo, in seconds
   static double lastPointKey = 0;
+  ////////////////////////////////////////////////////////////////////
+  char *data = (char*)mByteSendData.data();
+  uint8_t buf[255] = {0};
+  m_rxCnt+=mByteSendData.size();
+  if(mByteSendData.contains("jw"))
+  {
+      //for (int i = 0; i < buffer.size(); i++)
+      if(mByteSendData.size()>5)
+      {
+         buf[0]=mByteSendData.at(2)-48;
+         buf[1]=mByteSendData.at(3)-48;
+         buf[2]=mByteSendData.at(4)-48;
+         plotData=double(buf[0]*100+buf[1]*10+buf[2]);
+         qDebug()<<"接收正确帧"<<int(buf[0]*100+buf[1]*10+buf[2]);
+         ui->serial_plot->graph(0)->addData(key,plotData);
+      }
+      //解析接收数据
+  }
+  ////////////////////////////////////////////////////////////////////
+
   //if (key-lastPointKey > 0.100) // at most add point every 2 ms
   {
-      //add data to lines:
-    char *cdata=mByteSendData.data();
-    int length=mByteSendData.size();
-    qDebug()<<"realtimeDataSlot"<<*cdata<<length;
-
-    mByteSendData.resize(1);
-    //qDebug()<<"hex"<<mByteSendData.fromRawData(cdata,length);
-    for(int i=0;i<mByteSendData.size();i++){
-    ui->serial_plot->graph(0)->addData(key,mByteSendData.at(i));
-    qDebug()<<"hex1"<<mByteSendData.toHex().at(i);
-    }
-
+    ui->serial_plot->replot();
+    //plotData=mByteSendData.toDouble(&ok);
+    //ui->serial_plot->yAxis->setRange(double(-(plotData+300)), double(plotData+300));
+    //ui->serial_plot->graph(0)->addData(key,plotData);
     lastPointKey = key;
-    mByteSendData.clear();
+
   }
+
+  mByteSendData.clear();
+  mSerialPort.clear();
+
   // make key axis range scroll with the data (at a constant range size of 8):
   ui->serial_plot->xAxis->setRange(key, 8, Qt::AlignTrailing);
   ui->serial_plot->replot();
-  //ui->widget->show();
-  // calculate frames per second:
   static double lastFpsKey;
   static int frameCount;
   ++frameCount;
@@ -377,19 +605,23 @@ void MainWindow::on_serial_show(QByteArray data)
 bool MainWindow::find_SerialDevice(void)
 {
     //查找可用的串口
+    ui->comboBox_7->clear();
+
     foreach(const QSerialPortInfo &info, QSerialPortInfo::availablePorts())
     {
-        mserialportList.append(info.portName()+info.description());
+        //mserialportList.append(info.portName()+info.description());
         qDebug()<<"串口名:"<<info.portName();
         qDebug()<<"描述信息:"<<info.description();
         qDebug()<<"制造商:"<<info.manufacturer();
+
         QSerialPort serial;
         serial.setPort(info);
         if(serial.open(QIODevice::ReadWrite))
         {
-            ui->comboBox_7->addItem(serial.portName());
-            serial.close();
+        ui->comboBox_7->addItem(serial.portName());
+        serial.close();
         }
+
     }
 
     //serialThread->run();
@@ -484,7 +716,7 @@ void MainWindow::on_pushButton_8_clicked()
      for(int i=0;i<str.size();i++){
         ui->textBrowser_3->setText(str[i]);
      }
-    find_SerialDevice();
+    //find_SerialDevice();
 }
  void MainWindow::mainGUISendData(void)
  {
@@ -496,87 +728,299 @@ void MainWindow::hanldeResults(QString &result)
     qDebug()<<result<<"线程ID:"<<QThread::currentThreadId();
 }
 
-void MainWindow::on_comboBox_2_activated(const QString &arg1)
-{
-
-    ui->comboBox_2->currentIndex();
-    qDebug()<<ui->comboBox_2->currentIndex();
-}
 
 void MainWindow::on_pushButton_7_clicked()
 {
-    QString str=ui->pushButton_7->text();
-    if(str==tr("开始")){        
-        dataTimer->start();
-        ui->pushButton_7->setText(tr("停止"));
-    }else{
-        dataTimer->stop();
-        ui->pushButton_7->setText(tr("开始"));
-    }
+     qDebug()<<ui->comboBox_7->currentText();
+     qDebug()<<ui->pushButton_7->text();
+    if(ui->pushButton_7->text()==QString(tr("打开串口")))
+    {
+#if 0
+        // 串口设备
+        on_cbPortName_currentTextChanged(ui->comboBox_7->currentText());
+        // 波特率（注：QtSerial支持的枚举不多，但设置了其它值也行）
+        on_cbBaudrate_currentTextChanged(ui->comboBox_2->currentText());
+        //设置数据位
+        on_cbDatabit_currentTextChanged(ui->comboBox_4->currentText());
+        //设置停止位
+        on_cbStopbit_currentIndexChanged(ui->comboBox_3->currentIndex());
+        //设置奇偶校验
+        on_cbParity_currentIndexChanged(ui->comboBox_5->currentIndex());
+        //设置流控制
+        on_cbFlow_currentIndexChanged(ui->comboBox_6->currentIndex());
+#endif
+        // 打开串口
 
-    QString serialportname=ui->comboBox_7->currentText();
+        mSerialPort.setPortName(ui->comboBox_7->currentText());
+        mSerialPort.setBaudRate(QSerialPort::Baud115200,QSerialPort::AllDirections);//设置波特率和读写方向
+        mSerialPort.setDataBits(QSerialPort::Data8);		//数据位为8位
+        mSerialPort.setFlowControl(QSerialPort::NoFlowControl);//无流控制
+        mSerialPort.setParity(QSerialPort::NoParity);	//无校验位
+        mSerialPort.setStopBits(QSerialPort::OneStop); //一位停止位
 
-    qDebug()<<"m_serial"<<m_serial;
-    if(m_serial!=nullptr){
-        if(m_serial->jwSerialisOpen()){
-           //m_serial->jwSerialPort(ui->comboBox_7->currentText(),ui->comboBox_2->currentText());
-
-        }else{
-
+        showMessage("port opened.");
+        ui->textBrowser_3->setText("串口已找到");
+        ui->pushButton_7->setText(tr("关闭串口"));
+        mSerialPort.open(QIODevice::ReadWrite);
+        //ui->pushButton_7->setIcon(QIcon(":images/opened.ico"));
+        if(!mSerialPort.open(QIODevice::ReadWrite) && !mSerialPort.isOpen())
+        {
+            //QMessageBox::about(NULL, tr("info"), tr("open port failed."));
+            showMessage("open port failed.\n");
+            return;
         }
-        mainThread.start();
-        //connect(m_serial,SIGNAL(sendResulttoGUI(QByteArray)),this,SLOT(on_serial_show(QByteArray)),Qt::QueuedConnection);
+    }
+    else
+    {
+        mSerialPort.close();
+
+        showMessage("port closed.");
+        ui->pushButton_7->setText(tr("打开串口"));
+        //ui->pushButton_7->setIcon(QIcon(":images/notopened.ico"));
+        qDebug()<<"serial open fiale";
     }
 }
 
-void MainWindow::on_tabWidget_currentChanged(int index)
+void MainWindow::serialport_receivedata()
 {
-    int ofdex=ui->tabWidget->currentIndex();
-    index=ofdex;
-    switch(ofdex){
-        case 0:
-
-        break;
-
-        case 2:
-                //CreatePlot();
-        break;
-        case 3:
-                //CreatWaveplot();
-        break;
+    QByteArray info = mSerialPort.readAll();
+    QByteArray hexData = info.toHex();
+    //这里面的协议 你们自己定义就行  单片机发什么 代表什么 我们这里简单模拟一下
+    if(hexData == "0x10000")
+    {
+        //do something
     }
-
-    qDebug()<<"tabweight"<<ofdex;
+    else if(hexData  == "0x100001")
+    {
+        //do something
+    }
+    qDebug()<<"\r\n hjw ------>";
 }
 
-void MainWindow::on_comboBox_7_activated(const QString &arg1)
+void MainWindow::showMessage(const char* str)
 {
-    int ofindex=ui->comboBox_7->currentIndex();
-
+    QString tmp = str;
+    ui->statusbar->showMessage(tmp, 500);
 }
+
+
+
+
+
 
 void MainWindow::on_pushButton_9_clicked()
 {
-    char *str_data;
-    QString strdata;
-    QString strend;
-    QByteArray data;
-    strdata=ui->textEdit_3->toPlainText();;
-    //mSerialPort.write(data);
-    data=strdata.toLatin1();
-    str_data=data.data();
-    strend=QString(QLatin1String(str_data));
-    mByteSendData=data;//.data();
-
-
-    realtimeDataSlot();
-
-    qDebug()<<"mByteSendData"<<str_data<<strend;
-
+    Serialport_SendData();
 }
 
 void MainWindow::on_pushButton_10_clicked()
 {
-   ui->textEdit_3->clear();
+     ui->serialSendWindow->clear();
+}
 
+
+
+void MainWindow::on_btnOpen_clicked()
+{
+
+
+    if(ui->pushButton_7->text()==QString("打开串口"))
+    {
+        // 打开串口
+        if(!mSerialPort.open(QIODevice::ReadWrite) && !mSerialPort.isOpen())
+        {
+            //QMessageBox::about(NULL, tr("info"), tr("open port failed."));
+            showMessage("open port failed.\n");
+            return;
+        }
+
+        showMessage("port opened.");
+        ui->pushButton_7->setText(tr("关闭串口"));
+        ui->pushButton_7->setIcon(QIcon(":images/opened.ico"));
+    }
+    else
+    {
+        mSerialPort.close();
+
+        showMessage("port closed.");
+        ui->pushButton_7->setText(tr("打开串口"));
+        ui->pushButton_7->setIcon(QIcon(":images/notopened.ico"));
+    }
+}
+
+void MainWindow::on_btnSaveRecv_clicked()
+{
+
+}
+
+void MainWindow::on_btnClearRecv_clicked()
+{
+    ui->textBrowser_3->clear();
+}
+
+void MainWindow::on_ckRecvHex_stateChanged(int arg1)
+{
+    if (arg1 == Qt::Checked)
+    {
+        m_recvHex = 1;
+    }
+    else if (arg1 == Qt::Unchecked)
+    {
+        m_recvHex = 0;
+    }
+}
+
+void MainWindow::on_ckTimestamp_stateChanged(int arg1)
+{
+    if (arg1 == Qt::Checked)
+    {
+        //m_showTimestamp = 1;
+    }
+    else if (arg1 == Qt::Unchecked)
+    {
+        //m_showTimestamp = 0;
+    }
+}
+
+void MainWindow::on_btnSend_clicked()
+{
+#if 0
+    if (m_sendTimer)
+    {
+
+        if(ui->serialSendWindow->text()==QString("发送"))
+        {
+            if (m_sendTimerId == 0)
+                m_sendTimerId = startTimer(ui->txtInterval->text().toInt());
+            //ui->serialSendWindow->setText(tr("停止发送"));
+        }
+        else
+        {
+            if (m_sendTimerId)
+            {
+                killTimer(m_sendTimerId);
+                m_sendTimerId = 0;
+            }
+            ui->btnSend->setText(tr("发送"));
+        }
+    }
+    else
+    {
+        sendData();
+    }
+#endif
+}
+
+void MainWindow::Serialport_SendData(void)
+{
+
+
+    if (!mSerialPort.isOpen())
+    {
+        showMessage("serial port not opened.");
+        return;
+    }
+
+
+
+    QString sendStr = ui->serialSendWindow->toPlainText().toLatin1().toLower();
+
+    QByteArray sendData;
+    QString showStr;
+    m_sendHex=0;
+ #if 1
+    if (m_sendHex == 1)
+    {
+        hexStringToHexArray(sendStr, sendData);
+    }
+    else if (m_sendHex == 0)
+    {
+        sendData = sendStr.toLatin1();
+    }
+    if (m_sendNewline == 1)//回车
+    {
+        sendData.append(0x0d);
+        sendData.append(0x0a);
+    }
+    qDebug() << sendData;
+   // m_txCnt += sendData.size();
+    //m_stsTx->setText("TX: " + QString::number(m_txCnt));
+#endif
+    mSerialPort.write(sendData);
+    qDebug()<<"发送中...";
+}
+
+void MainWindow::on_btnClearSend_clicked()
+{
+
+}
+
+void MainWindow::on_chSendHex_stateChanged(int arg1)
+{
+    QString sendStr ;
+    QByteArray sendData = sendStr.toLatin1();//ui->txtSend->toPlainText().toLatin1();
+    QString tmpStr;
+    QString showStr;
+    //qDebug() << sendStr;
+    //qDebug() << sendData;
+    if (arg1 == Qt::Checked)
+    {
+        m_sendHex = 1;
+        showStr = sendData.toHex(' ').data();
+    }
+    else if (arg1 == Qt::Unchecked)
+    {
+        m_sendHex = 0;
+        hexStringToString(sendStr, showStr); // 用string来转
+    }
+
+}
+
+void MainWindow::on_ckSendTimer_stateChanged(int arg1)
+{
+    if (arg1 == Qt::Checked)
+    {
+        m_sendTimer = 1;
+    }
+    else if (arg1 == Qt::Unchecked)
+    {
+        m_sendTimer = 0;
+        if (m_sendTimerId)
+        {
+            killTimer(m_sendTimerId);
+            m_sendTimerId = 0;
+           // ui->serialSendWindow->setText("发送");
+        }
+    }
+}
+
+
+void MainWindow::on_chSendNewline_stateChanged(int arg1)
+{
+    if (arg1 == Qt::Checked)
+    {
+        m_sendNewline = 1;
+    }
+    else if (arg1 == Qt::Unchecked)
+    {
+        m_sendNewline = 0;
+    }
+}
+
+void MainWindow::on_pushButton_11_clicked()
+{
+    ui->textBrowser_3->clear();
+}
+
+
+void MainWindow::on_m_recvHex_clicked()
+{
+    m_sendHex=m_sendHex?1:0;
+    qDebug()<<"m_sendHex"<<m_sendHex;
+}
+
+void MainWindow::on_m_sendHex_clicked()
+{
+    m_recvHex=m_recvHex?1:0;
+    qDebug()<<"m_recvHex"<<m_recvHex;
 }
